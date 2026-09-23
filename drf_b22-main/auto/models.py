@@ -1,8 +1,15 @@
 from django.db import models
+from django.contrib.auth.models import User 
 
 class Publisher(models.Model):
     title = models.CharField(max_length=200, verbose_name="Называние")
     description = models.TextField(verbose_name='Описание')
+
+    class Meta:
+            verbose_name = 'издатель'
+            verbose_name_plural = 'издатели'
+    def __str__(self):
+            return self.title
 
 class Games(models.Model):
 
@@ -28,6 +35,7 @@ class Games(models.Model):
     created_at = models.DateTimeField(auto_now_add = True)
     image = models.ImageField('Фотография', upload_to='posts/', blank=True, null=True)
     publisher= models.ForeignKey(Publisher,on_delete=models.CASCADE, related_name='requirements', verbose_name="Издатель", blank=True, null=True)
+    
 
     class Meta:
         verbose_name = 'Игра'
@@ -47,12 +55,22 @@ class GamesReview(models.Model):
         (5, '⭐️⭐️⭐️⭐️⭐️'),
     )
 
+    user=models.ForeignKey(
+        User, 
+        on_delete=models.CASCADE,
+        related_name='review'
+    )
     name = models.CharField(max_length= 200, verbose_name = "название")
     text = models. TextField( verbose_name = "OueHka")
     raiting = models.IntegerField(choices=GAMES_RAITING, verbose_name = "PenTnHr" )
     games = models.ForeignKey(Games,on_delete = models. CASCADE,related_name = 'review')
     created_at = models.DateTimeField(auto_now_add = True)
 
+    game=models.ForeignKey(
+        Games,
+        on_delete=models.CASCADE,
+        related_name='review'
+        )
 
 
     class Meta:

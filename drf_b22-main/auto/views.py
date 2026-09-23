@@ -7,40 +7,19 @@ from rest_framework.pagination import PageNumberPagination
 from rest_framework.response import Response
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework.filters import SearchFilter, OrderingFilter
-
-
-from .models import Games, GamesReview ,SystemRequirements
+from .permissions import IsOwnerOrReadOnly
+from rest_framework.viewsets import ModelViewSet
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.decorators import action
+from .models import Games, GamesReview ,SystemRequirements,Publisher
 from .serializers import (
-    AutoSerializer,
+    GamesSerializer,
     GamesReviewSerializer,
     RegisterSerializer,
     loginSerializer,
     SystemSerializer,
     PublisherSerializer,
 )
-
-
-def home(request):
-    games = Games.objects.all()
-    context = {
-        'games': games,
-    }
-    return render(request, 'main/index.html', context)
-
-def about(request):
-    return render(request, 'main/about.html')
-
-
-
-def deteilz(request, id):
-    games=Games.objects.get(id=id)
-    cotext={
-        'games':games
-    }
-    return render(request, 'main/deteilz.html',cotext)
-
-
-
 
 @api_view(['POST'])
 def logout(request):
@@ -131,43 +110,97 @@ def register(request):
 #         status=status.HTTP_204_NO_CONTENT
 #     )
 
-
-class GamesReviewListCreateView(ListCreateAPIView):
+class GamesReviewViewSet(ModelViewSet):
     queryset = GamesReview.objects.all()
     serializer_class = GamesReviewSerializer
-    
-    filter_backends=[DjangoFilterBackend,SearchFilter]
-    filterset_fields=['name','raiting']
-    search_fields=['text','name']
+
+    permission_classes= [
+        IsAuthenticated,
+        IsOwnerOrReadOnly
+    ]
+
+    def get_queryset(self):
+        queryset = GamesReview.objects.all()
+
+        min_rating = self.request.query_params.get('min_rating')
+
+        if min_rating:
+            queryset = queryset.filter(raiting__gte=min_rating)
+
+        return queryset
+
+    def perform_created(self,serializer):
+        serializer.save(user = self.request.user)
 
 
 class GamesReviewDetailView(RetrieveUpdateDestroyAPIView):
     queryset = GamesReview.objects.all()
     serializer_class = GamesReviewSerializer
 
-class AutoLisCreateView(ListCreateAPIView):
+
+class GamesViewSet(viewsets.ModelViewSet):
     queryset = Games.objects.all()
-    serializer_class = AutoSerializer
+    serializer_class = GamesSerializer
+
+
+    @action(detail=False, methods=['get'])
+    def expensive(self, request):
+        autos = Games.objects. filter(price__gte = 100)
+
+        serializer = GamesSerializer(
+            autos,
+            many = True
+        )
+        return Response(serializer.data)   
+
+    @action(detail=False, methods=['get'])
+    def game_type(self, request):
+        type_games = request.query_params.get('type_games')
+        type_platform = request.query_params.get('type_platform')
+        publisher=request.query_params.get('publisher')
+
+        queryset = Games.objects.all()
+
+        if type_games:
+            queryset = queryset.filter(type_games=type_games)
+        if type_platform:
+            queryset = queryset.filter(type_platform=type_platform)
+        if publisher:
+            queryset = queryset.filter(publisher=publisher)
+    
+        serializer = GamesSerializer(
+                queryset,
+                many = True
+        )
+        return Response(serializer.data)
+
+
+    @action(detail=True, methods=['get'])
+    def reviews(self, request, pk = None):
+        auto = self.get_object()
+        reviews = GamesReview.objects.filter(game=auto)
+
+        serializer = GamesReviewSerializer(
+            reviews,
+            many = True
+        )   
+        return Response(serializer.data)
 
     filter_backends=[DjangoFilterBackend,SearchFilter]
-    filterset_fields=['title','type_games','type_platform']
-    search_fields=['description','title']
+    filterset_fields=['type_games','type_platform','publisher']
 
-class AutoDetailView(RetrieveUpdateDestroyAPIView):
-    queryset = Games.objects.all()
-    serializer_class = AutoSerializer
-
-class SystemListCreateView(ListCreateAPIView):
+class SystemViewSet(viewsets.ModelViewSet):
     queryset = SystemRequirements.objects.all()
     serializer_class = SystemSerializer
 
     filter_backends=[DjangoFilterBackend]
     filterset_fields=['os','processor','ram','graphics','storage']
 
+
 class SystemDetailView(RetrieveUpdateDestroyAPIView):
     queryset = SystemRequirements.objects.all()
-    serializer_class = GamesReviewSerializer
+    serializer_class = SystemSerializer
 
 class PublisherViewSet(viewsets.ModelViewSet):
-    queryset = SystemRequirements.objects.all()
+    queryset = Publisher.objects.all()
     serializer_class = PublisherSerializer

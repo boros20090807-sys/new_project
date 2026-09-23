@@ -37,7 +37,7 @@ class loginSerializer(serializers.Serializer):
 
         return data
 
-class AutoSerializer(serializers.ModelSerializer):
+class GamesSerializer(serializers.ModelSerializer):
     publisher = serializers.SlugRelatedField(
                 slug_field='title',
                 queryset=Publisher.objects.all()
